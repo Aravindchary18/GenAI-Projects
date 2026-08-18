@@ -1,0 +1,6 @@
+.env
+venv/
+evaluation/
+__pycache__/
+*.pyc
+backend/cache.db
