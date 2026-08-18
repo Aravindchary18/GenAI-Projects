@@ -4,3 +4,4 @@ evaluation/
 __pycache__/
 *.pyc
 backend/cache.db
+Unified-AI/backend/cache.db
