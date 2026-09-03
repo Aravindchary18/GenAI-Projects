@@ -91,11 +91,6 @@ async def upload_file(file:UploadFile=File(...)):
         embeddings=generate_embeddings(
             chunks
         )
-
-        qdrant.delete(
-            collection_name=COLLECTION_NAME,
-            points_selector=Filter()
-        )
     
         document_id=str(
             uuid.uuid4()
