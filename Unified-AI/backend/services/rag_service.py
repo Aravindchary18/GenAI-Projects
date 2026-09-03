@@ -6,8 +6,6 @@ from services.reranker_service import rerank
 
 from services.streaming_service import stream_llm
 
-import requests
-
 # ==========================================
 # BUILD CONTEXT FROM RETRIEVED CHUNKS
 # ==========================================
@@ -30,7 +28,7 @@ def build_context(results):
 
         chunk_index = payload.get("chunk_index","unknown")
 
-        texts.append(f"FILE: {source}\n {text}")
+        texts.append(f"FILE: {source}\n {text}\n chunk index: {chunk_index}")
 
     return "\n\n".join(texts)
     
