@@ -1,4 +1,4 @@
-# Unified AI — AI Workspace
+# Unified AI 
 
 A production-focused Generative AI application that combines **Retrieval-Augmented Generation (RAG), hybrid retrieval, cross-encoder reranking, LLM-powered career intelligence, and a practical web-search agent** in one workspace.
 
