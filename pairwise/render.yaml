@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pairwise-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATING_DB_PATH
+        value: /var/data/dating.sqlite3
+    disk:
+      name: pairwise-data
+      mountPath: /var/data
+      sizeGB: 1
