@@ -2,7 +2,7 @@ import streamlit as st
 import requests, os, sys
 from pathlib import Path
 
-sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app import db
 from app.seed import seed_synthetic
 from app.agents import analyze_profile, run_pair, compatibility
