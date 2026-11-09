@@ -1,467 +1,278 @@
-# Unified AI 
+# Unified AI — Enterprise Document Intelligence & Career Assistant
 
-A production-focused Generative AI application that combines **Retrieval-Augmented Generation (RAG), hybrid retrieval, cross-encoder reranking, LLM-powered career intelligence, and a practical web-search agent** in one workspace.
+An end-to-end **Applied AI platform** combining advanced **Retrieval-Augmented Generation (RAG), hybrid search, cross-encoder reranking, LLM orchestration, and agentic web search**.
 
-The system demonstrates how modern LLM applications can be built beyond a basic chatbot, combining document ingestion, semantic and keyword retrieval, relevance reranking, grounded generation, streaming responses, tool use, semantic caching, REST APIs, and containerized services.
+Built with FastAPI, LangChain, Qdrant, BM25, Sentence Transformers, and multiple LLM providers, the platform brings document intelligence, career analysis, and web research into one workspace.
 
-## What It Does
+## Key Features
 
-* **Document Q&A** — Upload a text-based PDF and ask questions grounded in its content.
-* **Hybrid RAG** — Combines semantic vector retrieval with BM25 keyword retrieval.
-* **Cross-Encoder Reranking** — Reranks retrieved chunks to improve relevance before generation.
-* **Streaming LLM Responses** — Streams RAG-generated answers from the local LLM to the client.
-* **Web Search Agent** — Uses a single LLM agent with a Tavily web-search tool to retrieve external information.
-* **Resume Analysis** — Analyzes a resume and returns skills, level, projects, education, experience, strengths, weaknesses, improvements, and a score.
-* **Skill Gap Analysis** — Compares a resume against a job description and identifies matched skills, missing skills, ATS score, improvements, and learning recommendations.
-* **Career Roadmap** — Generates a structured roadmap based on current skills, target role, and experience.
-* **Semantic Response Cache** — Reuses cached answers for sufficiently similar web-search questions to reduce repeated LLM generation.
-* **REST API** — FastAPI exposes the application's main capabilities through API endpoints.
-* **Containerized Architecture** — Backend, frontend, Qdrant, and Ollama run as separate Docker Compose services.
+- **Advanced RAG:** PDF ingestion, semantic chunking, vector retrieval, and context-grounded generation.
+- **Hybrid Retrieval:** Combines Qdrant vector search with BM25 keyword search.
+- **Cross-Encoder Reranking:** Uses `BAAI/bge-reranker-base` to improve retrieval relevance.
+- **LLM Fallbacks:** BharatCode as the primary provider with local Ollama fallback for RAG generation.
+- **Agentic Web Search:** LLM-powered agent with Tavily search tool integration.
+- **Career Intelligence:** Resume analysis, job-description skill-gap analysis, and personalized career roadmaps.
+- **Semantic Caching:** SQLite-backed cache for semantically similar web-search queries.
+- **Streaming Responses:** FastAPI streaming for incremental LLM responses.
+- **Containerized Architecture:** Docker Compose integration for backend, frontend, Qdrant, and Ollama.
 
 ## Architecture
 
 ```text
-                         ┌──────────────────────┐
-                         │   Streamlit Frontend │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │     FastAPI API      │
-                         └──────────┬───────────┘
-                                    │
-             ┌──────────────────────┼──────────────────────┐
-             │                      │                      │
-             ▼                      ▼                      ▼
-       Document RAG            Career Mentor          Web Search
-             │                      │                      │
-             │                      │                ┌─────▼─────┐
-             │                      │                │ LLM Agent │
-             │                      │                └─────┬─────┘
-             │                      │                      │
-             │                      │                Tavily Search
-             │                      │
-             ▼                      ▼
-        PDF ingestion          Ollama / Qwen
-             │
-             ▼
-       Text chunking
-             │
-             ▼
-      ┌───────────────┐
-      │  Embeddings   │
-      │ MiniLM 384-D  │
-      └───────┬───────┘
-              │
-              ▼
-           Qdrant
-              │
-       ┌──────┴──────┐
-       ▼             ▼
- Vector Retrieval   BM25
-       │             │
-       └──────┬──────┘
-              ▼
-       Hybrid Retrieval
-              │
-              ▼
-       Cross-Encoder
-          Reranking
-              │
-              ▼
-        Relevant Context
-              │
-              ▼
-      Qwen 2.5 Coder 3B
-              │
-              ▼
-       Streaming Answer
+                   ┌──────────────────────┐
+                   │   Streamlit Frontend │
+                   └──────────┬───────────┘
+                              │
+                   ┌──────────▼───────────┐
+                   │     FastAPI Backend  │
+                   └──────────┬───────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+  ┌───────▼────────┐  ┌───────▼────────┐  ┌───────▼────────┐
+  │  Document RAG  │  │ Career Mentor  │  │  Web Research  │
+  └───────┬────────┘  └────────────────┘  └───────┬────────┘
+          │                                       │
+  ┌───────▼────────┐                     ┌────────▼────────┐
+  │ PDF Extraction │                     │  LLM Agent      │
+  │ & Chunking     │                     │  + Tavily Tool  │
+  └───────┬────────┘                     └────────┬────────┘
+          │                                       │
+  ┌───────▼────────┐                     ┌────────▼────────┐
+  │ MiniLM         │                     │ SQLite Semantic │
+  │ Embeddings     │                     │ Cache           │
+  └───────┬────────┘                     └─────────────────┘
+          │
+  ┌───────▼────────┐
+  │ Qdrant + BM25  │
+  │ Hybrid Search  │
+  └───────┬────────┘
+          │
+  ┌───────▼────────┐
+  │ Cross-Encoder  │
+  │ Reranking      │
+  └───────┬────────┘
+          │
+  ┌───────▼────────┐
+  │ Relevant       │
+  │ Context        │
+  └───────┬────────┘
+          │
+  ┌───────▼────────┐
+  │ LLM Generation │
+  │ + Streaming    │
+  └────────────────┘
 ```
 
-## RAG Pipeline
+## 1. Advanced RAG Pipeline
 
-The document question-answering pipeline follows:
+The document Q&A system uses a hybrid retrieval pipeline to retrieve relevant information from uploaded PDFs.
 
-```text
-PDF
- ↓
-Text Extraction
- ↓
-Recursive Character Chunking
- ↓
-Sentence-Transformer Embeddings
- ↓
-Qdrant Vector Storage
- ↓
- ┌───────────────────────┐
- │                       │
- ▼                       ▼
-Vector Search           BM25
- │                       │
- └───────────┬───────────┘
-             ▼
-      Hybrid Retrieval
-             │
-             ▼
-    Cross-Encoder Reranker
-             │
-             ▼
-      Top Relevant Chunks
-             │
-             ▼
-      Context Construction
-             │
-             ▼
-       Qwen 2.5 Coder
-             │
-             ▼
-      Streaming Response
+### Document Processing
+
+1. Extract text from PDFs using `pdfplumber`.
+2. Split extracted text using `RecursiveCharacterTextSplitter`.
+3. Generate embeddings using `sentence-transformers/all-MiniLM-L6-v2`.
+4. Store vectors and document metadata in Qdrant.
+
+| Configuration | Value |
+|---|---|
+| Embedding model | `all-MiniLM-L6-v2` |
+| Embedding dimensions | 384 |
+| Chunk size | 500 characters |
+| Chunk overlap | 100 characters |
+| Vector database | Qdrant |
+| Keyword retrieval | BM25 |
+
+### Hybrid Retrieval & Reranking
+
+The retrieval pipeline combines two complementary search methods:
+
+- **Dense retrieval:** Qdrant vector similarity search retrieves semantically relevant chunks.
+- **Sparse retrieval:** BM25 retrieves keyword-relevant chunks.
+- **Reranking:** `BAAI/bge-reranker-base` scores retrieved candidates based on query-document relevance.
+- **Context selection:** The top 5 reranked chunks are passed to the generation model.
+
+Document-level filtering uses metadata such as `user_id` and `document_id`.
+
+### LLM Generation
+
+- BharatCode is configured as the primary LLM provider.
+- Local Ollama provides a fallback.
+- LangChain's fallback mechanism handles provider failures.
+- Responses are streamed through FastAPI's `StreamingResponse`.
+
+Production LLM configuration:
+
+```python
+llm = bharath_llm.with_fallbacks([local_llm])
 ```
 
-### Retrieval Design
+## 2. Agentic Web Research
 
-* **PDF extraction:** `pdfplumber`
-* **Chunking:** `RecursiveCharacterTextSplitter`
-* **Chunk size:** 500 characters
-* **Chunk overlap:** 100 characters
-* **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`
-* **Embedding dimension:** 384
-* **Vector database:** Qdrant
-* **Keyword retrieval:** BM25
-* **Initial retrieval:** top 10 candidates from vector search and top 10 from BM25
-* **Reranker:** `BAAI/bge-reranker-base`
-* **Reranked context:** top 5 candidates
-* **LLM:** Qwen 2.5 Coder 3B Instruct via Ollama
+A tool-using LLM agent performs web research through Tavily.
 
-Retrieved chunks are filtered by `document_id`, keeping document Q&A scoped to the selected uploaded document.
+### Workflow
 
-## Agent / Web Search
+1. Receives a user research query.
+2. Uses the web-search tool to retrieve external information.
+3. Processes search results through the LLM.
+4. Generates a response based on retrieved information.
+5. Checks the semantic cache to reuse previously generated answers for sufficiently similar queries.
 
-The application also includes a practical **single LLM agent with a web-search tool**.
+### Semantic Caching
 
-```text
-User Question
-     ↓
-Semantic Cache Check
-     ↓
-LLM Agent
-     ↓
-Web Search Tool
-     ↓
-Tavily Search
-     ↓
-Search Results
-     ↓
-LLM Response
-     ↓
-Semantic Cache
-```
+SQLite stores cached queries, embeddings, and responses.
 
-The agent uses `qwen2.5:3b-instruct` through Ollama and is configured with a Tavily web-search tool.
+- Embeddings generated using `all-MiniLM-L6-v2`.
+- Normalized embeddings are compared using dot-product similarity.
+- Similarity threshold: `0.85`.
+- Cache matches can avoid redundant LLM inference.
 
-The web-search system prompt instructs the agent to call the search tool before answering and to base its response on the returned search results.
+## 3. Career Intelligence
 
-The web-search workflow uses a lightweight semantic cache backed by SQLite.
-
-## Career Intelligence
-
-The backend also provides three LLM-powered career workflows.
+The Career Mentor module provides three AI-powered workflows.
 
 ### Resume Analysis
 
-```text
-Resume PDF
-   ↓
-PDF Text Extraction
-   ↓
-Qwen 2.5 Coder 3B
-   ↓
-Structured JSON
-```
+Extracts and evaluates:
 
-Returns:
+- Technical and soft skills
+- Experience and education
+- Projects and strengths
+- Weaknesses and improvement areas
+- Resume score and recommendations
 
-* Skills
-* Level
-* Projects
-* Education
-* Experience
-* Strengths
-* Weaknesses
-* Resume improvements
-* Score
+### Job Description Skill-Gap Analysis
 
-### Skill Gap Analysis
+Compares a resume against a target job description to identify:
 
-```text
-Resume + Job Description
-          ↓
-       Qwen 2.5 Coder 3B
-          ↓
-    Structured Analysis
-```
+- Matching skills
+- Missing skills
+- Skill gaps
+- ATS-oriented feedback
+- Recommended improvements and learning areas
 
-Produces:
+### Personalized Career Roadmap
 
-* Matched skills
-* Missing skills
-* ATS score
-* Resume improvements
-* Learning recommendations
+Generates a structured learning roadmap containing:
 
-### Career Roadmap
+- Current skill assessment
+- Foundation, intermediate, and job-ready phases
+- Recommended projects
+- Interview preparation
+- Learning resources
 
-```text
-Current Skills
-      +
-Target Role
-      +
-Experience
-      ↓
-Qwen 2.5 Coder 3B
-      ↓
-Structured Roadmap
-```
+## 4. Evaluation Results
 
-The roadmap contains:
+The project includes lightweight evaluation scripts for RAG and web-agent workflows.
 
-* Current skill assessment
-* Foundation phase
-* Intermediate phase
-* Job Ready phase
-* Interview preparation
-* Portfolio projects
-* Learning resources
+### RAG Evaluation
 
-## Caching
+15 test cases evaluated using expected-keyword coverage.
 
-The web-search agent uses a lightweight semantic cache backed by SQLite.
+| LLM Provider | Passed | Pass Rate |
+|---|---:|---:|
+| BharatCode | 11/15 | 73.33% |
+| Ollama — Qwen2.5 Coder 3B | 6/15 | 40.00% |
 
-Questions are embedded using the same `all-MiniLM-L6-v2` embedding model with normalized embeddings. Similarity is then calculated using a dot product between the normalized vectors.
+### Web-Agent Evaluation
 
-A cached response is reused when the similarity reaches the configured threshold of **0.85**.
+12 test cases evaluating tool invocation and expected-keyword coverage.
 
-This can reduce repeated LLM generation for semantically similar web-search questions.
+| Metric | BharatCode | Ollama — Qwen3 4B |
+|---|---:|---:|
+| Passed tests | 9/12 | 10/12 |
+| Pass rate | 75.00% | 83.33% |
+| Tool invocation rate | 83.33% | 100% |
+| Expected-keyword coverage | 75.00% | 80.56% |
+| Average latency | 22.71s | 26.79s |
 
-## API Endpoints
+**Evaluation notes:**
+- These are lightweight functional and expected-keyword evaluations, not comprehensive factual-accuracy benchmarks.
+- RAG pass rates measure expected-keyword coverage.
+- Web-agent tests also evaluate whether the agent invokes its search tool.
+- BharatCode web-agent tests `web_004` and `web_005` encountered provider HTTP 503 errors.
+- Ollama web-agent tests `web_008` and `web_012` failed.
 
-| Endpoint                        | Purpose                                    |
-| ------------------------------- | ------------------------------------------ |
-| `POST /upload`                  | Upload and index a PDF document            |
-| `POST /chat`                    | Ask questions against an uploaded document |
-| `POST /websearch/search`        | Run the web-search agent                   |
-| `POST /career_mentor/analyze`   | Analyze a resume                           |
-| `POST /career_mentor/skill-gap` | Compare a resume with a job description    |
-| `POST /career_mentor/roadmap`   | Generate a career roadmap                  |
-| `GET /`                         | Backend root endpoint                      |
+## 5. API Endpoints
 
-## Tech Stack
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Backend health check |
+| POST | `/upload` | Upload and process PDF documents |
+| POST | `/chat` | Ask questions about uploaded documents |
+| POST | `/websearch/search` | Perform agentic web research |
+| POST | `/career_mentor/analyze` | Analyze a resume |
+| POST | `/career_mentor/skill-gap` | Compare resume against a job description |
+| POST | `/career_mentor/roadmap` | Generate a personalized career roadmap |
 
-### GenAI / LLM
+## 6. Technology Stack
 
-* Qwen 2.5 Coder 3B Instruct
-* Qwen 2.5 3B Instruct for the web-search agent
-* Ollama
-* LangChain
-* Agent/tool calling
-* Tavily Search
+| Category | Technologies |
+|---|---|
+| Languages | Python, SQL |
+| Backend | FastAPI, Pydantic |
+| Frontend | Streamlit |
+| LLM Integration | LangChain, BharatCode, Ollama |
+| Local LLMs | Qwen2.5 Coder 3B, Qwen3 4B |
+| Vector Database | Qdrant |
+| Embeddings | Sentence Transformers, all-MiniLM-L6-v2 |
+| Retrieval | Dense Vector Search, BM25 |
+| Reranking | BAAI/bge-reranker-base |
+| Web Search | Tavily |
+| Caching | SQLite, Semantic Similarity |
+| Document Processing | pdfplumber, RecursiveCharacterTextSplitter |
+| Deployment | Docker, Docker Compose |
 
-### RAG / Retrieval
-
-* Sentence Transformers
-* `all-MiniLM-L6-v2`
-* Qdrant
-* BM25
-* Cross-Encoder Reranking
-* Recursive Character Text Splitting
-
-### Backend
-
-* Python
-* FastAPI
-* Pydantic
-* `StreamingResponse`
-* REST APIs
-
-### Frontend
-
-* Streamlit
-
-### Infrastructure
-
-* Docker
-* Docker Compose
-* Qdrant container
-* Ollama container
-* SQLite semantic cache
-
-## Project Structure
+## 7. Project Structure
 
 ```text
 Unified-AI/
+│
 ├── backend/
-│   ├── main.py
-│   ├── Dockerfile
-│   ├── requirements.txt
+│   ├── data/
+│   ├── evals/
 │   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── chat.py
-│   │   ├── upload.py
-│   │   ├── career_mentor.py
-│   │   └── web_search.py
+│   │   └── upload.py
+│   │
 │   ├── services/
-│   │   ├── __init__.py
 │   │   ├── agent_service.py
 │   │   ├── bm25_service.py
-│   │   ├── cache_service.py
-│   │   ├── embedding_service.py
-│   │   ├── hybrid_retrieval_service.py
 │   │   ├── rag_service.py
-│   │   ├── reranker_service.py
 │   │   ├── retrieval_service.py
+│   │   ├── reranker_service.py
 │   │   ├── resume_analysis_service.py
 │   │   ├── skill_gap_service.py
 │   │   ├── roadmap_service.py
 │   │   └── streaming_service.py
+│   │
 │   ├── tools/
-│   │   ├── __init__.py
-│   │   └── web_search.py
-│   └── utils/
-│       ├── __init__.py
-│       ├── chunking.py
-│       ├── logging_utils.py
-│       └── prompts.py
-├── frontend/
-│   ├── streamlit_app.py
-│   ├── Dockerfile
+│   │   ├── web_search.py
+│   │   └── voice.py
+│   │
+│   ├── main.py
 │   └── requirements.txt
-└── docker-compose.yml
+│
+├── frontend/
+│   └── streamlit_app.py
+│
+├── docker-compose.yml
+└── README.md
 ```
 
-## Running Locally
+## 8. Engineering Focus
 
-### 1. Clone the repository
+This project explores practical engineering challenges in building LLM-powered applications:
 
-```bash
-git clone <repository-url>
-cd GenAI-Projects/Unified-AI
-```
-
-### 2. Configure environment variables
-
-Create a `.env` file containing the required Tavily API key:
-
-```env
-TAVILY_API_KEY=your_tavily_api_key
-```
-
-### 3. Start the services
-
-```bash
-docker compose up --build
-```
-
-The Docker Compose setup starts:
-
-* FastAPI backend
-* Streamlit frontend
-* Qdrant
-* Ollama
-
-### 4. Access the application
-
-Frontend:
-
-```text
-http://localhost:8501
-```
-
-Backend:
-
-```text
-http://localhost:8000
-```
-
-Qdrant:
-
-```text
-http://localhost:6333
-```
-
-## Engineering Focus
-
-This project focuses on practical LLM application engineering rather than model training.
-
-Key engineering areas demonstrated:
-
-* Retrieval-Augmented Generation
-* Hybrid search
-* Semantic embeddings
-* Vector databases
-* Cross-encoder reranking
-* LLM integration
-* Agent/tool use
-* Prompt constraints
-* Streaming inference
-* Semantic caching
-* REST API design
-* PDF document processing
-* Dockerized services
-* Modular backend architecture
-
-## Limitations
-
-* PDF ingestion currently targets text-based PDFs.
-* The web-search workflow depends on a Tavily API key.
-* LLM inference is performed locally through Ollama and therefore depends on available system resources.
-* The current project is a portfolio implementation and is not presented as a production SaaS deployment with enterprise-scale observability, authentication, or distributed infrastructure.
-
-## Why This Project?
-
-The goal was to build an end-to-end **practical GenAI system** that demonstrates how individual LLM application components fit together.
-
-**Document workflow:**
-
-```text
-documents
-    ↓
-retrieval
-    ↓
-reranking
-    ↓
-grounded generation
-```
-
-**Tool-using workflow:**
-
-```text
-LLM agent
-    ↓
-web-search tool
-    ↓
-Tavily search
-    ↓
-response
-```
-
-**Application architecture:**
-
-```text
-API
- ↓
-services
- ↓
-AI components
- ↓
-containers
- ↓
-user-facing application
-```
-
-Rather than treating an LLM as a standalone chatbot, the project focuses on integrating retrieval, reranking, generation, tool use, caching, APIs, and infrastructure into a single practical application.
+- Designing hybrid retrieval pipelines instead of relying exclusively on vector similarity.
+- Improving retrieved-context relevance through cross-encoder reranking.
+- Integrating hosted and local LLM providers with fallback handling.
+- Building tool-using agents for external information retrieval.
+- Reducing repeated inference through semantic caching.
+- Exposing AI workflows through structured REST APIs and streaming responses.
+- Evaluating model behavior using repeatable test cases.
 
 ---
 
-```text
-Built as a practical Generative AI / Applied AI engineering project.
-```
+**Built as a hands-on Applied AI engineering project focused on RAG systems, LLM applications, retrieval pipelines, and agentic workflows.**
