@@ -1,6 +1,5 @@
-import requests
-
-import json
+from langchain_openai import ChatOpenAI
+import os
 
 def analyze_skill_gap(resume_data, job_description):
 
@@ -29,25 +28,15 @@ Job:
 {job_description}
 """
     
-    response = requests.post(
-        "http://ollama:11434/api/generate",
-        json = {
-            "model":"qwen2.5-coder:3b-instruct",
-            "prompt": prompt,
-            "stream":False,
-            "format": "json",
-
-            "options": {
-                "temperature": 0
-            }
-
-        }
-    )
-   
-    
-    result = response.json()["response"]
-    
-
-    result = json.loads(result)
-
-    return result
+    bllm = ChatOpenAI(
+            model="qwen-3.8-27b",
+            api_key=os.environ["bharat_akey"],
+            base_url="https://bharatcode.ai/api/model/v1",
+            temperature=0,
+            timeout=180,
+            max_retries=0
+            )
+        
+    result = bllm.invoke(prompt)
+        
+    return result.content

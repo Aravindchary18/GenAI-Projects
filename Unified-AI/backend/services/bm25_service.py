@@ -8,11 +8,18 @@ from qdrant_client.models import (
     MatchValue
 )
 
+import os
+
+qdrant_url = (
+    "http://localhost:6333"
+    if os.name == "nt"
+    else "http://qdrant:6333"
+)
 
 COLLECTION_NAME="documents"
 
 qdrant = QdrantClient(
-     url="http://qdrant:6333"
+     url=qdrant_url
 )
 
 def bm25_search(que,document_id,top_R=10):
@@ -51,6 +58,10 @@ def bm25_search(que,document_id,top_R=10):
         s.split()
         for s in chunks_texts
     ]
+
+    if not split_chunk:
+        return []
+
 
     bm25=BM25Okapi(split_chunk)
 

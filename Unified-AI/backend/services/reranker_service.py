@@ -1,7 +1,12 @@
 from sentence_transformers import CrossEncoder
+from pathlib import Path
+Model_Path = "/models/bge-reranker-base"
+
+if not Path(Model_Path).exists():
+    Model_Path = "BAAI/bge-reranker-base"
 
 reranker=CrossEncoder(
-      "/models/bge-reranker-base"
+      Model_Path
 )
 
 def rerank(query,results,top_k=5):

@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.upload import router as upload_router
 from routes.chat import router as chat_router
 from routes.career_mentor import router as  career_router 
-from services.cache_service import create_cache_db
 from routes.web_search import router as web_search_router
+
+from services.cache_service import create_cache_db
+
 app = FastAPI()
 
 

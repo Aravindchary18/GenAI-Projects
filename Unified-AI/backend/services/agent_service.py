@@ -3,16 +3,35 @@ from langchain_ollama import ChatOllama
 from tools.web_search import web_search_tool
 from utils.prompts import WEB_SEARCH_SYSTEM_PROMPT
 from services.cache_service import ( get_cached_answer , add_to_cache )
+from langchain_openai import ChatOpenAI
+import os
 
-llm = ChatOllama(
-    model = "qwen2.5:3b-instruct",
-    base_url="http://ollama:11434",
+ollama_url = (
+    "http://ollama:11434"
+    if os.name != "nt"
+    else "http://localhost:11434"
+)
+
+
+bharath_llm = ChatOpenAI(
+    model="qwen-3.8-27b",
+    api_key=os.environ["bharat_akey"],
+    base_url="https://bharatcode.ai/api/model/v1",
     temperature=0,
-    validate_model_on_init=True,
+    timeout=180,
+    max_retries=0
+)
+
+local_llm = ChatOllama(
+    model = "qwen3:4b",
+    base_url=ollama_url,
+    temperature=0,
+    validate_model_on_init=False,
     reasoning=False,
     timeout=180
 )
 
+llm = local_llm.with_fallbacks([bharath_llm])
 
 agent = create_agent(
     model=llm,

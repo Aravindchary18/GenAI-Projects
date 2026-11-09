@@ -12,12 +12,16 @@ from qdrant_client.models import (
    MatchValue   
 )
 
+import os
+
 # ==========================================
 # CONNECT TO QDRANT VECTOR DATABASE
 # ==========================================
 
+qdrant_url = "http://localhost:6333" if os.name=="nt" else "http://qdrant:6333"
+
 qdrant = QdrantClient(
-    url="http://qdrant:6333"
+    url=qdrant_url 
 )
 
 # ==========================================
@@ -67,9 +71,3 @@ def retrieve(query,document_id,top_k=5):
           status_code=500,
           detail=f"Retrieval failed: {str(e)}"
        )
-      
-
-
-    
-
-

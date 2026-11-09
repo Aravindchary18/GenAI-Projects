@@ -4,7 +4,7 @@ from utils.prompts import SYSTEM_PROMPT
 
 from services.reranker_service import rerank
 
-from services.streaming_service import stream_llm
+from services.streaming_service import ans_call
 
 # ==========================================
 # BUILD CONTEXT FROM RETRIEVED CHUNKS
@@ -83,4 +83,4 @@ Answer:
 """
 
 
-    return stream_llm(prompt)
+    return ans_call(prompt)

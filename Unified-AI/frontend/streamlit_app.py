@@ -1,7 +1,37 @@
 import requests
 import streamlit as st
+import json
+from backend.tools.voice import transcribe_audio, synthesize_speech
 
 FASTAPI_URL = "http://backend:8000"
+
+def get_rag_ans(ques, doc_id):
+
+    response = requests.post(
+        f"{FASTAPI_URL}/chat",
+        json={
+            "question": ques,
+            "document_id": doc_id
+        },
+        stream=True,
+        timeout=600
+    )
+
+    response.raise_for_status()
+
+    answer = ""
+    output = st.empty()
+
+    for chunk in response.iter_content(
+        chunk_size= None,
+        decode_unicode=True
+    ):
+        if chunk:
+            answer +=chunk
+            output.markdown(answer)
+
+    return answer
+
 
 st.set_page_config(
     page_title="Unified AI",
@@ -20,7 +50,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
         "Resume Analysis",
         "Skill Gap",
         "Career roadmap",
-        "Web Search"
+        "Web Search",
     ]
 )
 
@@ -109,7 +139,46 @@ with tab1:
 
                 else:
                     st.info("Please enter the question.")
-with tab2:     
+
+    st.divider()
+
+    st.subheader("You can now ask using Voice")
+
+    aud_file = st.audio_input("Record your question.")
+
+    if st.button("Ask with Voice", key="rag_voice"):
+
+        if aud_file is None:
+
+            st.warning("Please record your question.")
+
+        elif not st.session_state.get("document_uploaded", False):
+
+            st.warning("Please upload a PDF first.")
+
+        else:
+
+            try:
+
+                transcript = transcribe_audio(aud_file)
+
+                if not transcript.strip():
+                    st.warning("No speech detected.")
+                    st.stop()
+
+                st.write("**Your question:**",transcript)
+
+                answer = get_rag_ans(transcript, st.session_state.document_id)
+
+                if answer.strip():
+
+                    audio = synthesize_speech(answer)
+
+                    st.audio(audio, format="audio/wav")
+
+            except:
+                st.error("voice function failed")            
+with tab2:
 
     st.subheader("Resume Analysis")
 
@@ -292,3 +361,52 @@ with tab5:
             st.info(
                 "Please enter a question."
             )
+    st.divider()
+
+    st.subheader("You can now search using voice")
+
+    aud_file = st.audio_input("Record your search question.")
+
+    if st.button("Search with voice", key="web_voice"):
+
+        if aud_file is None:
+
+            st.warning("Please record your question.")
+
+        else:
+
+            try:
+
+                transcript = transcribe_audio(aud_file.getvalue())
+
+                if not transcript.strip():
+                    st.warning("No speech detected.")
+                    st.stop()
+
+                st.write("**Your question:**",transcript)
+
+                response = requests.post(
+                                    f"{FASTAPI_URL}/websearch/search",
+                                    json={
+                                        "question": transcript
+                                    },
+                                    timeout=600
+                                )
+                response.raise_for_status()
+
+                result = response.json()["result"]
+
+                st.markdown(result)
+
+                if result.strip():
+
+                    audio = synthesize_speech(result)
+
+                    st.audio(audio, format="audio/wav")
+
+            except Exception as e:
+
+                st.error(f"Voice search failed: {e}")
+
+
+                    
