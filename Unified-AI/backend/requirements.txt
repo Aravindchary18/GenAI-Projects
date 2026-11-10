@@ -39,6 +39,4 @@ tavily-python
 
 streamlit
 
-gnani-vachana
-
 langchain-openai

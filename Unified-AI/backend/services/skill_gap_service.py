@@ -1,5 +1,6 @@
 from langchain_openai import ChatOpenAI
 import os
+from langchain_core.output_parsers import JsonOutputParser
 
 def analyze_skill_gap(resume_data, job_description):
 
@@ -39,4 +40,4 @@ Job:
         
     result = bllm.invoke(prompt)
         
-    return result.content
+    return JsonOutputParser().parse(result.content)

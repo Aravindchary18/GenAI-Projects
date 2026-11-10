@@ -1,5 +1,6 @@
 from langchain_openai import ChatOpenAI
 import os
+from langchain_core.output_parsers import JsonOutputParser
 
 def analyze_roadmap(current_skills, target_role, experience_years):
     skills = ", ".join(current_skills) if isinstance(current_skills,(list,tuple)) else str(current_skills)
@@ -77,6 +78,6 @@ Answer:
     
     result = bllm.invoke(prompt)
     
-    return result.content
+    return JsonOutputParser().parse(result.content)
 
 

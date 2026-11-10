@@ -39,6 +39,10 @@ services:
 
       ports:
         - "8501:8501"
+      
+      env_file:
+        - .env
+        
       environment:
         FASTAPI_URL: http://backend:8000
 

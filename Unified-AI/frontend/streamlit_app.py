@@ -1,9 +1,12 @@
 import requests
 import streamlit as st
-import json
-from backend.tools.voice import transcribe_audio, synthesize_speech
+from voice import transcribe_audio, synthesize_speech
+import os
+from dotenv import load_dotenv
 
-FASTAPI_URL = "http://backend:8000"
+load_dotenv()
+
+FASTAPI_URL = os.getenv("FASTAPI_URL")
 
 def get_rag_ans(ques, doc_id):
 
@@ -176,8 +179,8 @@ with tab1:
 
                     st.audio(audio, format="audio/wav")
 
-            except:
-                st.error("voice function failed")            
+            except Exception as e:
+                st.error(f"voice function failed:{e}")            
 with tab2:
 
     st.subheader("Resume Analysis")
@@ -211,7 +214,7 @@ with tab2:
                 response.raise_for_status()
 
                 st.json(
-                    response.json()
+                    response.json()["result"]
                 )
 
             except Exception as e :
@@ -262,7 +265,7 @@ with tab3:
                 response.raise_for_status()
 
                 st.json(
-                    response.json()
+                    response.json()["result"]
                 )
 
             except Exception as e:
@@ -311,7 +314,7 @@ with tab4:
                 response.raise_for_status()
 
                 st.json(
-                    response.json()
+                    response.json()["result"]
                 )
 
             except Exception as e :
@@ -377,7 +380,7 @@ with tab5:
 
             try:
 
-                transcript = transcribe_audio(aud_file.getvalue())
+                transcript = transcribe_audio(aud_file)
 
                 if not transcript.strip():
                     st.warning("No speech detected.")
