@@ -1,6 +1,32 @@
 from langchain_openai import ChatOpenAI
 import os
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_ollama import ChatOllama
+
+
+
+ollama_url = (
+    "http://ollama:11434"
+    if os.name != "nt"
+    else "http://localhost:11434"
+)
+
+bllm = ChatOpenAI(
+    model="qwen-3.8-27b",
+    api_key=os.environ["bharat_akey"],
+    base_url="https://bharatcode.ai/api/model/v1",
+    temperature=0,
+    timeout=180,
+    max_retries=0
+)
+local_llm = ChatOllama(
+    model = "qwen3:4b",
+    base_url=ollama_url,
+    temperature=0,
+    validate_model_on_init=False,
+    reasoning=False,
+    timeout=180
+)
 
 def analyze_skill_gap(resume_data, job_description):
 
@@ -29,15 +55,8 @@ Job:
 {job_description}
 """
     
-    bllm = ChatOpenAI(
-            model="qwen-3.8-27b",
-            api_key=os.environ["bharat_akey"],
-            base_url="https://bharatcode.ai/api/model/v1",
-            temperature=0,
-            timeout=180,
-            max_retries=0
-            )
+    llm = local_llm.with_fallbacks([bllm])
         
-    result = bllm.invoke(prompt)
+    response = llm.invoke(prompt)
         
-    return JsonOutputParser().parse(result.content)
+    return response.content
