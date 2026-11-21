@@ -1,278 +1,527 @@
-# Unified AI — Enterprise Document Intelligence & Career Assistant
+# Unified AI Workspace
 
-An end-to-end **Applied AI platform** combining advanced **Retrieval-Augmented Generation (RAG), hybrid search, cross-encoder reranking, LLM orchestration, and agentic web search**.
+**An LLM-driven personal AI assistant powered by LangGraph and MCP.**
 
-Built with FastAPI, LangChain, Qdrant, BM25, Sentence Transformers, and multiple LLM providers, the platform brings document intelligence, career analysis, and web research into one workspace.
+Unified AI Workspace brings document intelligence, web research, persistent memory, browser automation, and Gmail operations into one assistant. Users interact through natural language, while the LLM determines which tools are needed and LangGraph manages their execution.
 
-## Key Features
+The project focuses on building an extensible agent architecture that separates reasoning, workflow orchestration, tool interoperability, and service execution.
 
-- **Advanced RAG:** PDF ingestion, semantic chunking, vector retrieval, and context-grounded generation.
-- **Hybrid Retrieval:** Combines Qdrant vector search with BM25 keyword search.
-- **Cross-Encoder Reranking:** Uses `BAAI/bge-reranker-base` to improve retrieval relevance.
-- **LLM Fallbacks:** BharatCode as the primary provider with local Ollama fallback for RAG generation.
-- **Agentic Web Search:** LLM-powered agent with Tavily search tool integration.
-- **Career Intelligence:** Resume analysis, job-description skill-gap analysis, and personalized career roadmaps.
-- **Semantic Caching:** SQLite-backed cache for semantically similar web-search queries.
-- **Streaming Responses:** FastAPI streaming for incremental LLM responses.
-- **Containerized Architecture:** Docker Compose integration for backend, frontend, Qdrant, and Ollama.
+---
+
+## Overview
+
+Traditional AI applications often implement individual capabilities as separate workflows. Unified AI Workspace takes a different approach: a single assistant can understand a request, select the appropriate tools, execute multiple operations, inspect their results, and formulate a response.
+
+For example, a user can ask the assistant to research a topic, inspect uploaded documents, remember information, open websites, or prepare an email without manually selecting individual tools.
+
+The system uses:
+
+- **LangGraph** for stateful agent orchestration.
+- **LLM tool calling** for dynamic tool selection and decision-making.
+- **MCP (Model Context Protocol)** for standardized tool integration.
+- **FastAPI** for backend APIs.
+- **SQLite** for persistent application data and graph checkpointing.
+
+## Key Capabilities
+
+### 1. Document Intelligence
+- PDF document processing and question answering.
+- Retrieval-Augmented Generation (RAG).
+- Multi-document retrieval capabilities.
+- Dense vector retrieval using Qdrant.
+- BM25 keyword retrieval.
+- Hybrid retrieval and reranking.
+
+### 2. Web Research
+- Fresh web research through Tavily.
+- Retrieval of external information.
+- Research results returned to the assistant for further reasoning.
+
+### 3. Persistent Personal Memory
+- Save user information.
+- Retrieve stored memories.
+- Update existing memories.
+- Delete memories.
+- SQLite-backed persistence.
+
+### 4. Browser Automation
+- Open public websites.
+- Play YouTube videos.
+- Download public PDF files.
+- Fill public form fields.
+
+Form submission is not performed automatically.
+
+### 5. Gmail Integration
+- Create Gmail drafts.
+- Send drafts through an approval-controlled workflow.
+- Validate approval against the exact pending tool call and draft.
+
+Email sending is not permitted without the required approval.
+
+### 6. Career Assistance
+- Resume analysis.
+- Skill-gap identification.
+- Career roadmap generation.
+
+These capabilities reuse the existing backend services.
+
+---
 
 ## Architecture
 
+The system follows an LLM-driven agent architecture.
+
 ```text
-                   ┌──────────────────────┐
-                   │   Streamlit Frontend │
-                   └──────────┬───────────┘
-                              │
-                   ┌──────────▼───────────┐
-                   │     FastAPI Backend  │
-                   └──────────┬───────────┘
-                              │
-          ┌───────────────────┼───────────────────┐
-          │                   │                   │
-  ┌───────▼────────┐  ┌───────▼────────┐  ┌───────▼────────┐
-  │  Document RAG  │  │ Career Mentor  │  │  Web Research  │
-  └───────┬────────┘  └────────────────┘  └───────┬────────┘
-          │                                       │
-  ┌───────▼────────┐                     ┌────────▼────────┐
-  │ PDF Extraction │                     │  LLM Agent      │
-  │ & Chunking     │                     │  + Tavily Tool  │
-  └───────┬────────┘                     └────────┬────────┘
-          │                                       │
-  ┌───────▼────────┐                     ┌────────▼────────┐
-  │ MiniLM         │                     │ SQLite Semantic │
-  │ Embeddings     │                     │ Cache           │
-  └───────┬────────┘                     └─────────────────┘
-          │
-  ┌───────▼────────┐
-  │ Qdrant + BM25  │
-  │ Hybrid Search  │
-  └───────┬────────┘
-          │
-  ┌───────▼────────┐
-  │ Cross-Encoder  │
-  │ Reranking      │
-  └───────┬────────┘
-          │
-  ┌───────▼────────┐
-  │ Relevant       │
-  │ Context        │
-  └───────┬────────┘
-          │
-  ┌───────▼────────┐
-  │ LLM Generation │
-  │ + Streaming    │
-  └────────────────┘
+                   USER
+                     |
+                     v
+            Natural Language Request
+                     |
+                     v
+               ASSISTANT LLM
+                     |
+              Tool Selection
+                     |
+                     v
+              LANGGRAPH AGENT
+                     |
+              Workflow Routing
+                     |
+                     v
+              MCP TOOL ADAPTER
+                     |
+                     v
+                 MCP CLIENT
+                     |
+                     v
+                 MCP SERVER
+                     |
+          +----------+----------+
+          |          |          |
+          v          v          v
+       Document    Research   Memory
+       Services    Services   Services
+          |
+          +----------+----------+
+                     |
+          +----------+----------+
+          |                     |
+          v                     v
+     Browser Tools         Gmail Tools
+          |                     |
+          |               Approval Gate
+          |                     |
+          |                     v
+          |                 Gmail Send
+          |
+          v
+       Tool Results
+          |
+          v
+       LANGGRAPH
+          |
+          v
+       ASSISTANT LLM
+          |
+          v
+       FINAL RESPONSE
 ```
 
-## 1. Advanced RAG Pipeline
+### How It Works
 
-The document Q&A system uses a hybrid retrieval pipeline to retrieve relevant information from uploaded PDFs.
+1. The user submits a natural-language request.
+2. The assistant LLM interprets the request and selects an appropriate tool.
+3. LangGraph manages the execution workflow and shared state.
+4. The MCP adapter exposes and validates tool calls.
+5. The MCP client communicates with the MCP server.
+6. The MCP server invokes the corresponding existing backend service.
+7. The tool result returns to the assistant.
+8. The LLM evaluates the result and decides whether another tool call is necessary.
+9. The assistant generates the final response.
 
-### Document Processing
+This supports sequential tool execution rather than relying on a fixed, predefined workflow for every request.
 
-1. Extract text from PDFs using `pdfplumber`.
-2. Split extracted text using `RecursiveCharacterTextSplitter`.
-3. Generate embeddings using `sentence-transformers/all-MiniLM-L6-v2`.
-4. Store vectors and document metadata in Qdrant.
+---
 
-| Configuration | Value |
+## LangGraph Orchestration
+
+LangGraph manages the assistant's execution lifecycle.
+
+Its responsibilities include:
+
+- Maintaining shared assistant state.
+- Invoking the assistant LLM.
+- Routing between LLM and tool execution nodes.
+- Supporting sequential tool calls.
+- Returning tool results to the LLM.
+- Handling execution errors.
+- Managing Gmail approval workflows.
+- Persisting graph checkpoints.
+
+The implementation supports a bounded execution loop:
+
+| Configuration | Limit |
+|---|---:|
+| Maximum LLM turns | 12 |
+| Maximum tool calls | 16 |
+| Tool calls per assistant turn | 1 |
+
+The graph also retains a legacy specialist workflow for structured automation requests.
+
+### Important Graph Files
+
+| File | Responsibility |
 |---|---|
-| Embedding model | `all-MiniLM-L6-v2` |
-| Embedding dimensions | 384 |
-| Chunk size | 500 characters |
-| Chunk overlap | 100 characters |
-| Vector database | Qdrant |
-| Keyword retrieval | BM25 |
+| `agents/graph.py` | Graph construction, routing, invocation, resumption, checkpointing |
+| `agents/llm_nodes.py` | LLM execution, tool selection, routing, tool execution |
+| `agents/state.py` | Shared assistant state |
+| `agents/nodes.py` | Workflow nodes |
+| `agents/specialists.py` | Specialist workflows |
+| `agents/tool_registry.py` | Tool registry |
+| `agents/mcp_tool_adapter.py` | LLM-facing MCP tool interface |
+| `agents/mcp_client.py` | MCP client implementation |
 
-### Hybrid Retrieval & Reranking
+---
 
-The retrieval pipeline combines two complementary search methods:
+## MCP Integration
 
-- **Dense retrieval:** Qdrant vector similarity search retrieves semantically relevant chunks.
-- **Sparse retrieval:** BM25 retrieves keyword-relevant chunks.
-- **Reranking:** `BAAI/bge-reranker-base` scores retrieved candidates based on query-document relevance.
-- **Context selection:** The top 5 reranked chunks are passed to the generation model.
+The project uses the official MCP Python SDK v2.
 
-Document-level filtering uses metadata such as `user_id` and `document_id`.
+MCP separates the assistant's tool-selection logic from the actual implementation of individual tools.
 
-### LLM Generation
+### MCP Components
 
-- BharatCode is configured as the primary LLM provider.
-- Local Ollama provides a fallback.
-- LangChain's fallback mechanism handles provider failures.
-- Responses are streamed through FastAPI's `StreamingResponse`.
+**MCP Server — `backend/mcp_server.py`**
 
-Production LLM configuration:
+Exposes the assistant's available tools and connects them to existing backend services.
 
-```python
-llm = bharath_llm.with_fallbacks([local_llm])
-```
+**MCP Client — `backend/agents/mcp_client.py`**
 
-## 2. Agentic Web Research
+Handles MCP communication, tool discovery, input schemas, and tool execution.
 
-A tool-using LLM agent performs web research through Tavily.
+**MCP Tool Adapter — `backend/agents/mcp_tool_adapter.py`**
 
-### Workflow
+Connects the LLM-facing tool interface to MCP execution.
 
-1. Receives a user research query.
-2. Uses the web-search tool to retrieve external information.
-3. Processes search results through the LLM.
-4. Generates a response based on retrieved information.
-5. Checks the semantic cache to reuse previously generated answers for sufficiently similar queries.
+### Exposed Tool Interfaces
 
-### Semantic Caching
+| Tool | Purpose |
+|---|---|
+| `list_uploaded_documents` | List uploaded documents |
+| `search_uploaded_documents` | Search uploaded documents |
+| `research_web_fresh` | Perform fresh web research |
+| `remember_user_fact` | Store a user fact |
+| `search_user_memory` | Retrieve stored memories |
+| `update_user_memory` | Update a stored memory |
+| `forget_user_memory` | Delete a stored memory |
+| `open_public_website` | Open a public website |
+| `play_youtube_video` | Play a YouTube video |
+| `download_public_pdf` | Download a public PDF |
+| `fill_public_form_fields` | Fill public form fields |
+| `create_gmail_draft` | Create a Gmail draft |
+| `send_gmail_draft_after_approval` | Send an approved Gmail draft |
 
-SQLite stores cached queries, embeddings, and responses.
+The MCP server is designed to reuse existing project services instead of duplicating their implementations.
 
-- Embeddings generated using `all-MiniLM-L6-v2`.
-- Normalized embeddings are compared using dot-product similarity.
-- Similarity threshold: `0.85`.
-- Cache matches can avoid redundant LLM inference.
+---
 
-## 3. Career Intelligence
+## Human-in-the-Loop Gmail Approval
 
-The Career Mentor module provides three AI-powered workflows.
+Email sending is treated as a sensitive operation.
 
-### Resume Analysis
+The assistant cannot simply select the Gmail sending tool and execute it immediately.
 
-Extracts and evaluates:
+The approval workflow is:
 
-- Technical and soft skills
-- Experience and education
-- Projects and strengths
-- Weaknesses and improvement areas
-- Resume score and recommendations
+1. The LLM requests a Gmail send operation.
+2. LangGraph detects the sensitive tool call.
+3. The graph routes execution to the approval workflow.
+4. An approval record is prepared.
+5. The user reviews and approves or rejects the operation.
+6. The graph resumes after approval.
+7. The execution layer validates the approval against the exact tool call and draft.
+8. Only a matching approved operation can proceed.
 
-### Job Description Skill-Gap Analysis
+The system also prevents:
+- Sending without approval.
+- Executing rejected requests.
+- Reusing approval for a different draft.
+- Executing a tool call with mismatched approval information.
 
-Compares a resume against a target job description to identify:
+---
 
-- Matching skills
-- Missing skills
-- Skill gaps
-- ATS-oriented feedback
-- Recommended improvements and learning areas
+## Persistence
 
-### Personalized Career Roadmap
+SQLite is used for application persistence.
 
-Generates a structured learning roadmap containing:
+The project includes persistence for:
 
-- Current skill assessment
-- Foundation, intermediate, and job-ready phases
-- Recommended projects
-- Interview preparation
-- Learning resources
+- Assistant-related data.
+- Personal memory.
+- Approval records.
+- LangGraph execution checkpoints.
 
-## 4. Evaluation Results
+The LangGraph SQLite checkpointer supports saving and restoring graph execution state.
 
-The project includes lightweight evaluation scripts for RAG and web-agent workflows.
+---
 
-### RAG Evaluation
-
-15 test cases evaluated using expected-keyword coverage.
-
-| LLM Provider | Passed | Pass Rate |
-|---|---:|---:|
-| BharatCode | 11/15 | 73.33% |
-| Ollama — Qwen2.5 Coder 3B | 6/15 | 40.00% |
-
-### Web-Agent Evaluation
-
-12 test cases evaluating tool invocation and expected-keyword coverage.
-
-| Metric | BharatCode | Ollama — Qwen3 4B |
-|---|---:|---:|
-| Passed tests | 9/12 | 10/12 |
-| Pass rate | 75.00% | 83.33% |
-| Tool invocation rate | 83.33% | 100% |
-| Expected-keyword coverage | 75.00% | 80.56% |
-| Average latency | 22.71s | 26.79s |
-
-**Evaluation notes:**
-- These are lightweight functional and expected-keyword evaluations, not comprehensive factual-accuracy benchmarks.
-- RAG pass rates measure expected-keyword coverage.
-- Web-agent tests also evaluate whether the agent invokes its search tool.
-- BharatCode web-agent tests `web_004` and `web_005` encountered provider HTTP 503 errors.
-- Ollama web-agent tests `web_008` and `web_012` failed.
-
-## 5. API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/` | Backend health check |
-| POST | `/upload` | Upload and process PDF documents |
-| POST | `/chat` | Ask questions about uploaded documents |
-| POST | `/websearch/search` | Perform agentic web research |
-| POST | `/career_mentor/analyze` | Analyze a resume |
-| POST | `/career_mentor/skill-gap` | Compare resume against a job description |
-| POST | `/career_mentor/roadmap` | Generate a personalized career roadmap |
-
-## 6. Technology Stack
+## Technology Stack
 
 | Category | Technologies |
 |---|---|
-| Languages | Python, SQL |
-| Backend | FastAPI, Pydantic |
+| Language | Python |
+| Backend | FastAPI |
 | Frontend | Streamlit |
-| LLM Integration | LangChain, BharatCode, Ollama |
-| Local LLMs | Qwen2.5 Coder 3B, Qwen3 4B |
-| Vector Database | Qdrant |
-| Embeddings | Sentence Transformers, all-MiniLM-L6-v2 |
-| Retrieval | Dense Vector Search, BM25 |
+| Agent orchestration | LangGraph |
+| LLM integration | LangChain |
+| Tool interoperability | MCP Python SDK v2 |
+| Vector database | Qdrant |
+| Keyword retrieval | BM25 |
+| Embeddings | Sentence Transformers |
 | Reranking | BAAI/bge-reranker-base |
-| Web Search | Tavily |
-| Caching | SQLite, Semantic Similarity |
-| Document Processing | pdfplumber, RecursiveCharacterTextSplitter |
-| Deployment | Docker, Docker Compose |
+| Web research | Tavily |
+| Browser automation | Playwright |
+| Persistence | SQLite |
+| Email integration | Gmail API |
+| Graph checkpointing | LangGraph SQLite Checkpointer |
+| Deployment | Docker / Docker Compose |
 
-## 7. Project Structure
+---
+
+## Project Structure
 
 ```text
 Unified-AI/
 │
 ├── backend/
-│   ├── data/
-│   ├── evals/
-│   ├── routes/
-│   │   └── upload.py
+│   │
+│   ├── agents/
+│   │   ├── graph.py
+│   │   ├── llm_nodes.py
+│   │   ├── mcp_client.py
+│   │   ├── mcp_tool_adapter.py
+│   │   ├── nodes.py
+│   │   ├── specialists.py
+│   │   ├── state.py
+│   │   └── tool_registry.py
 │   │
 │   ├── services/
 │   │   ├── agent_service.py
+│   │   ├── approval_service.py
+│   │   ├── assistant_llm.py
+│   │   ├── assistant_store.py
 │   │   ├── bm25_service.py
+│   │   ├── cache_service.py
+│   │   ├── embedding_service.py
+│   │   ├── fresh_research_service.py
+│   │   ├── gmail_service.py
+│   │   ├── hybrid_retrieval_service.py
+│   │   ├── memory_service.py
 │   │   ├── rag_service.py
-│   │   ├── retrieval_service.py
 │   │   ├── reranker_service.py
-│   │   ├── resume_analysis_service.py
-│   │   ├── skill_gap_service.py
+│   │   ├── retrieval_service.py
 │   │   ├── roadmap_service.py
+│   │   ├── skill_gap_service.py
 │   │   └── streaming_service.py
 │   │
 │   ├── tools/
-│   │   ├── web_search.py
-│   │   └── voice.py
+│   │   └── browser_tools.py
 │   │
-│   ├── main.py
-│   └── requirements.txt
+│   ├── evals/
+│   │   ├── results/
+│   │   ├── tests/
+│   │   ├── agent_evaluator.py
+│   │   ├── agent_tasks.jsonl
+│   │   ├── rag_evaluation.py
+│   │   └── resume_evaluation.py
+│   │
+│   ├── mcp_server.py
+│   └── tests/
 │
-├── frontend/
-│   └── streamlit_app.py
-│
-├── docker-compose.yml
 └── README.md
 ```
 
-## 8. Engineering Focus
+---
 
-This project explores practical engineering challenges in building LLM-powered applications:
+## Installation
 
-- Designing hybrid retrieval pipelines instead of relying exclusively on vector similarity.
-- Improving retrieved-context relevance through cross-encoder reranking.
-- Integrating hosted and local LLM providers with fallback handling.
-- Building tool-using agents for external information retrieval.
-- Reducing repeated inference through semantic caching.
-- Exposing AI workflows through structured REST APIs and streaming responses.
-- Evaluating model behavior using repeatable test cases.
+### Prerequisites
+
+- Python 3.11
+- Git
+- Access to the required external API services
+- Qdrant configuration
+- Gmail API credentials if using Gmail functionality
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Aravindchary18/GenAI-Projects.git
+cd GenAI-Projects/Unified-AI/backend
+```
+
+### 2. Create a Virtual Environment
+
+Windows:
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+### 3. Install Dependencies
+
+Use the project's requirements file:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Ensure the environment includes the required agent dependencies:
+
+```powershell
+pip install "mcp>=2,<3" langgraph langgraph-checkpoint-sqlite
+```
+
+### 4. Configure Environment Variables
+
+Create the appropriate `.env` file using the variable names expected by the existing application.
+
+Configure the credentials required for the services you intend to use, including:
+
+- LLM provider.
+- Tavily.
+- Gmail API and OAuth.
+- Qdrant, if configured through environment variables.
+
+Never commit API keys, OAuth credentials, or other secrets.
 
 ---
 
-**Built as a hands-on Applied AI engineering project focused on RAG systems, LLM applications, retrieval pipelines, and agentic workflows.**
+## Running the Application
+
+The application uses FastAPI for backend APIs and Streamlit for the user interface.
+
+Start each component using the existing application entry points and configuration.
+
+The MCP server must also be available to the MCP client using the configured transport.
+
+Exact launch commands depend on the project's current entry-point and configuration files.
+
+---
+
+## Testing
+
+The project includes unit tests for agent orchestration and evaluation.
+
+### Agent Graph Tests
+
+Run from the `backend` directory:
+
+```powershell
+python -m unittest discover -s .\evals\tests -p "test_agent_graph.py" -v
+```
+
+**Latest verified result: 8/8 tests passed.**
+
+The tests cover:
+
+- LLM tool selection and final response.
+- Multiple sequential tool calls.
+- Tool execution failures.
+- Gmail approval routing.
+- Blocking unapproved sending.
+- Preventing rejected sending.
+- Matching approvals to the correct draft.
+
+### Agent Evaluator Tests
+
+```powershell
+python -m unittest discover -s evals/tests -p "test_agent_evaluator.py" -v
+```
+
+**Latest verified result: 3/3 tests passed.**
+
+The evaluator checks recorded execution results against expected tools, routing, completion, approval requirements, citations, and latency.
+
+### Current Test Results
+
+| Test Suite | Passed |
+|---|---:|
+| Agent Graph | 8/8 |
+| Agent Evaluator | 3/3 |
+| **Total** | **11/11** |
+
+These results represent the verified test suites, not a claim that every external integration has passed end-to-end testing.
+
+---
+
+## Evaluation
+
+The agent evaluation dataset is located at:
+
+```text
+backend/evals/agent_tasks.jsonl
+```
+
+It currently contains six task categories:
+
+- Document search.
+- Fresh web research.
+- Website inspection.
+- Gmail draft creation.
+- Form filling.
+- Approval-controlled Gmail sending.
+
+The evaluator reads execution results rather than independently running live tools.
+
+---
+
+## Design Principles
+
+The project follows several engineering principles:
+
+1. **Separation of concerns:** LLM reasoning, graph orchestration, MCP communication, and service execution remain separate.
+2. **Reusable services:** Existing backend functionality is reused instead of duplicated.
+3. **Dynamic tool selection:** The LLM determines which tools are relevant to a request.
+4. **Stateful execution:** LangGraph manages execution state and checkpoints.
+5. **Controlled side effects:** Sensitive actions require explicit approval.
+6. **Bounded execution:** Tool calls and LLM turns have configured limits.
+7. **Testability:** Agent routing, error handling, and approval behavior have dedicated tests.
+
+---
+
+## Current Development Status
+
+The following components have been implemented and their relevant unit tests have passed:
+
+- LLM-driven LangGraph orchestration.
+- MCP client and tool adapter.
+- MCP server implementation.
+- Sequential tool execution.
+- Gmail approval routing and validation.
+- Offline agent evaluation.
+- SQLite graph checkpoint integration.
+
+The graph and evaluator test suites currently have **11 passing tests combined**.
+
+Further integration testing is needed to verify every MCP tool against its actual backend service and to validate complete application workflows with real external services.
+
+---
+
+## Future Improvements
+
+- Complete end-to-end testing of all MCP tools.
+- Strengthen multi-document retrieval and evaluation.
+- Improve tool execution observability.
+- Expand agent evaluation datasets.
+- Improve failure recovery and retry handling.
+- Validate persistent graph resumption across real sessions.
+- Complete deployment and production-readiness checks.
+
+---
+
+## Project Goal
+
+The goal of Unified AI Workspace is to build a unified, extensible personal AI assistant where an LLM can understand user intent, coordinate tools through LangGraph, access capabilities through MCP, and execute useful workflows while maintaining control over sensitive actions.
