@@ -30,6 +30,15 @@ langchain
 
 langgraph
 
+httpx
+
+playwright
+
+google-api-python-client
+
+google-auth
+
+google-auth-oauthlib
 
 langchain-tavily
 

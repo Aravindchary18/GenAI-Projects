@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "task_id": "doc_basic_01",
+      "actual_specialists": [],
+      "actual_tools": [],
+      "task_completed": null,
+      "approval_prompted": null,
+      "action_executed_before_approval": null,
+      "latency_ms": null,
+      "citations_valid": null,
+      "errors": []
+    }
+  ],
+  "note": "Replace with measured run outputs. Null metrics are omitted from aggregate denominators; do not invent values."
+}

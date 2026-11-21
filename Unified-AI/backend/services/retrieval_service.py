@@ -9,7 +9,8 @@ from services.embedding_service import (
 from qdrant_client.models import (
    Filter,
    FieldCondition,
-   MatchValue   
+   MatchValue,
+   MatchAny   
 )
 
 import os
@@ -39,20 +40,24 @@ def retrieve(query,document_id,top_k=5):
       # CONVERT QUESTION INTO VECTOR
       query_embedding = generate_embeddings([query])[0]
       # SEARCH SIMILAR VECTORS
-
+      document_match = (
+                     MatchValue(value=document_id)
+                     if isinstance(document_id, str)
+                     else MatchAny(any=document_id)
+      )
       results = qdrant.query_points(
             collection_name=COLLECTION_NAME,
 
             query=query_embedding.tolist(),
+
+            
 
             query_filter = Filter(
                must=[
                   FieldCondition(
                      key="document_id",
 
-                     match=MatchValue(
-                        value=document_id
-                     )
+                     match=document_match
                   )
                ]
             ),
